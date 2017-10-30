@@ -1,5 +1,5 @@
-//#include "semaphore.h"
-#include <semaphore.h>
+#include "semaphore.h"
+//#include <semaphore.h>
 #include "producer_consumer.h"
 
 #include <stdio.h>
@@ -9,20 +9,21 @@
 #define PRODUCER_NBR 3
 #define CONSUMER_NBR 3
 
-#define HANDLE_ERROR(msg)\
-do{\
-  perror(msg);\
-  exit(EXIT_FAILURE);\
-} while(0)
+//#define HANDLE_ERROR(msg)\
+//do{\
+//  perror(msg);\
+//  exit(EXIT_FAILURE);\
+//} while(0)
 
 int buffer[BUFSIZE];
+pthread_mutex_t buf_lock;
 unsigned int put_index = 0;
 unsigned int remove_index = 0;
 
 
 
 
-// 3 semaphores are used.
+// 2 semaphores are used.
 /* this semaphore is used as a condition variable, to notify one 
    of the consumers that one of the producers has inserted an elt
    in the buffer */
@@ -30,9 +31,6 @@ sem_t producer_insert_cond;
 /* this semaphore is used as a condition variable, to notify one
    of the producers that there are spots available in the buffer.*/
 sem_t consumer_remove_cond;
-/* this semaphore is used as a lock, to prevent race condition 
-   in case more than 1 thread access the buffer at the same time.*/
-sem_t _lock;
 
 
 // the leading thread, "main"
@@ -48,13 +46,11 @@ int main(int argc, char *argv[]){
   if (sem_init(&consumer_remove_cond, 0, BUFSIZE) != 0){
     HANDLE_ERROR("sem_init()");
   }
-
-  // a lock is a binary semaphore, hence this semaphore is 
-  // initialized to 1.
-  if (sem_init(&_lock, 0, 1) != 0){
-    HANDLE_ERROR("sem_init()");
-  }
   
+  if (pthread_mutex_init(&buf_lock, NULL) != 0){
+    HANDLE_ERROR("pthread_mutex_init()");
+  }
+
   int i;
   // producer threads.
   pthread_t producer_threads[PRODUCER_NBR];
@@ -96,11 +92,11 @@ void *producer_routine(void *args){
     // wait for the empty slot.
     sem_wait(&consumer_remove_cond);
     // wait for a lock to enter the critical region: buffer.
-    sem_wait(&_lock);
+    pthread_mutex_lock(&buf_lock);
     put_elt(i);
     i++;
     // release the lock.
-    sem_post(&_lock);
+    pthread_mutex_unlock(&buf_lock);
     // signal one of the consumers: an elt was added to the buffer
     sem_post(&producer_insert_cond);
   }
@@ -113,10 +109,10 @@ void *consumer_routine(void *agrs){
     // wait for one of the producers to add an elt to the buffer.
     sem_wait(&producer_insert_cond);
     // wait for a lock to enter the critical region: buffer.
-    sem_wait(&_lock);
+    pthread_mutex_lock(&buf_lock);
     remove_elt();
     // release the lock.
-    sem_post(&_lock);
+    pthread_mutex_unlock(&buf_lock);
     // signal of the producers: there is an(other) empty slot.
     sem_post(&consumer_remove_cond);
   }
@@ -126,16 +122,20 @@ void *consumer_routine(void *agrs){
 
 void
 put_elt(int elt){
-  put_index %= BUFSIZE;
   buffer[put_index] = elt;
-  put_index++; 
+  put_index++;
+  if (put_index >= BUFSIZE){
+    put_index = 0;
+  }
 }
 
 void
 remove_elt(void){
-  remove_index %= BUFSIZE;
   printf("%d\n", buffer[remove_index]);
   fflush(stdout);
   remove_index++;
+  if (remove_index >= BUFSIZE){
+    remove_index = 0;
+  }
 }
 

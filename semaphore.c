@@ -19,43 +19,26 @@ sem_init(sem_t *sem, int pshared, unsigned int initial_val){
 
 int
 sem_wait(sem_t *sem){
-  while(sem->count == 0);
+  while(sem->pending_posts > sem->count);
   if (pthread_mutex_lock(&(sem->mutex)) != 0){
     HANDLE_ERROR("pthread_mutex_lock()");
-  }
+  }  
+  int mysem = sem->count;
   sem->count--;
+  if (sem->count < 0){
+    if (pthread_mutex_unlock(&(sem->mutex)) != 0){
+      HANDLE_ERROR("pthread_mutex_unlock()");
+    }
+    while(sem->count < mysem);
+    if (pthread_mutex_lock(&(sem->mutex)) != 0){
+      HANDLE_ERROR("pthread_mutex_lock()");
+    }
+  }
+  sem->pending_posts--;
   if (pthread_mutex_unlock(&(sem->mutex)) != 0){
     HANDLE_ERROR("pthread_mutex_unlock()");
   } 
 
-  
-
-
-//
-//  if (pthread_mutex_lock(&(sem->mutex)) != 0){
-//    HANDLE_ERROR("pthread_mutex_lock()");
-//  }
-//  if (sem->count < sem->init_value){
-//    while(sem->pending_posts <= sem->count); // block
-//  }
-//
-//  int mycount = sem->count;
-//  sem->count--;
-//  if (sem->count < 0){
-//    if (pthread_mutex_unlock(&(sem->mutex)) != 0){
-//      HANDLE_ERROR("pthread_mutex_unlock()");
-//    }
-//    while (sem->count < mycount); // block
-//    if (pthread_mutex_lock(&(sem->mutex)) != 0){
-//      HANDLE_ERROR("pthread_mutex_lock()");
-//    }
-//  }
-//  // if a thread made it here then it will post, hence increase the nbr of pending posts.
-//  sem->pending_posts++;
-//  if (pthread_mutex_unlock(&(sem->mutex)) != 0){
-//    HANDLE_ERROR("pthread_mutex_unlock()");
-//  }
-  
   return 0;
 }
 
@@ -65,7 +48,7 @@ sem_post(sem_t *sem){
     HANDLE_ERROR("pthread_mutex_lock()");
   }
   sem->count++;
-  sem->pending_posts--;
+  sem->pending_posts++;
   if (pthread_mutex_unlock(&(sem->mutex)) != 0){
     HANDLE_ERROR("pthread_mutex_lock()");
   }  
