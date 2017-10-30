@@ -1,19 +1,13 @@
 #include "semaphore.h"
-//#include <semaphore.h>
 #include "producer_consumer.h"
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #define BUFSIZE 4
 #define PRODUCER_NBR 3
 #define CONSUMER_NBR 3
-
-//#define HANDLE_ERROR(msg)\
-//do{\
-//  perror(msg);\
-//  exit(EXIT_FAILURE);\
-//} while(0)
 
 int buffer[BUFSIZE];
 pthread_mutex_t buf_lock;

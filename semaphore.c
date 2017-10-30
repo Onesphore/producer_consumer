@@ -9,7 +9,6 @@ sem_init(sem_t *sem, int pshared, unsigned int initial_val){
   if (pthread_mutex_init(&(sem->mutex), NULL) != 0){
     HANDLE_ERROR("pthread_mutex_init()");
   }
-  sem->init_value = initial_val;
   sem->count = initial_val;
   sem->pending_posts = 0;
   

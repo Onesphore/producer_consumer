@@ -14,7 +14,6 @@ do{			  \
 // the semaphore structure
 typedef struct sem{
   pthread_mutex_t mutex; // In this design every semaphore is associated with a mutex.
-  unsigned int init_value;
   int count; // if less than 1 it indicates the nbr of waiting threads.
   int pending_posts; 
 } sem_t;
